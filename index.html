@@ -1,1 +1,112 @@
+<html>
+  <head>
+    <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/react-router-dom/5.0.1/react-router-dom.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.js'></script>
+<style>
+  body {
+    font-family: verdana;
+  }
+  nav {
+    display: flex;
+    justify-content: space-around;
+    padding: 1rem;
+    border-bottom: solid 1px black;
+  }
+  a {
+    padding: 1rem;
+  }
+  .active {
+    background-color: tomato;
+    color: white;
+    font-weight: bold;
+  }
+  li {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 2rem;
+  }
+  li span {
+    padding: 1rem;
+    font-style: italic;
+  }
 
+</style>
+
+  </head>
+  <body>
+    <div id='root'></div>
+    <script type='text/babel'>
+      const Departments = ({ users, departments, match})=> {
+        const department = departments.find( department => department.id === match.params.id) || {};
+        const filtered = users.filter( user => (user.department_id === match.params.id) || ( !match.params.id && !user.department_id));
+        return (
+          <div>
+            <h2>{ department.name }</h2>
+            <ul>
+              {
+                filtered.map( user => (
+                  <li key={ user.id }>{ user.name } <span>{ user.bio }</span></li>
+                ))
+              }
+            </ul>
+          </div>
+        );
+      }; 
+
+      const Nav = ({ users, departments, match})=> {
+
+        const mapped = departments.map( department => {
+          return {...department, users: users.filter( user => user.department_id === department.id)};
+        });
+
+        const usersWithNoDepartment = users.filter( user => !user.department_id);
+
+
+        return (
+          <div>
+            <h1>Acme Users Departments pg-express</h1>
+            <nav>
+              {
+                mapped.map( department => <NavLink key={ department.id } to={`/departments/${department.id}`}>{ department.name } ({ department.users.length })</NavLink>)
+              }
+              <NavLink to='/usersWithNoDepartment'>Users With No Department ({ usersWithNoDepartment.length })</NavLink>
+            </nav>
+          </div>
+        );
+      }
+      const { Switch, HashRouter, Link, NavLink, Route, Redirect } = ReactRouterDOM;
+      class App extends React.Component{
+        constructor(){
+          super();
+          this.state = {
+            users: [],
+            departments: []
+          };
+        }
+        async componentDidMount(){
+          const responses = await Promise.all([axios.get('/api/users'), axios('/api/departments')]);
+          this.setState({ users: responses[0].data, departments: responses[1].data });
+        }
+        render(){
+          const { departments } = this.state;
+          return (
+            <HashRouter>
+              <Route render={ ({ match })=> <Nav {...this.state } match={ match } />} />
+              <Switch>
+                <Route path='/departments/:id?' render={ ({ match } )=> <Departments { ...this.state } match={ match}/>} />
+                <Route path='/usersWithNoDepartment' render={ ({ match } )=> <Departments { ...this.state } match={ match}/>} />
+                {
+                  departments.length && <Redirect to={`/departments/${departments[0].id}`} />
+                }
+              </Switch>
+            </HashRouter>
+          );
+        }
+      }
+      ReactDOM.render(<App />, document.querySelector('#root'));
+    </script>
+  </body>
+</html>
